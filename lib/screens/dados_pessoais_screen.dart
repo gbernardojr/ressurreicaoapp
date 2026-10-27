@@ -4,9 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/client_data.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
+import '../utils/links.dart';
 import '../widgets/info_row.dart';
 import '../widgets/message_banner.dart';
 import '../widgets/password_field.dart';
+import 'login_screen.dart';
 
 class DadosPessoaisScreen extends StatefulWidget {
   final ClientData data;
@@ -22,8 +24,10 @@ class _DadosPessoaisScreenState extends State<DadosPessoaisScreen> {
   final _novaController = TextEditingController();
   final _confirmaController = TextEditingController();
   bool _carregando = false;
+  bool _excluindo = false;
   String? _erro;
   String? _sucesso;
+  String? _erroExclusao;
 
   @override
   void dispose() {
@@ -87,6 +91,87 @@ class _DadosPessoaisScreenState extends State<DadosPessoaisScreen> {
       setState(() => _erro = 'Erro ao conectar. Tente novamente.');
     } finally {
       if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  Future<void> _excluirConta() async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir minha conta'),
+        content: const Text(
+          'Sua conta de acesso será excluída definitivamente e você não poderá mais entrar '
+          'no aplicativo.\n\n'
+          'Os dados cadastrais e financeiros mantidos pelo cemitério (mensalidades, boletos '
+          'e registros de sepultamento) permanecem armazenados por obrigação legal e '
+          'contratual. Para solicitar a remoção desses dados, procure a administração do '
+          'cemitério.\n\n'
+          'Deseja continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
+            child: const Text('EXCLUIR CONTA'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmado != true) return;
+
+    setState(() {
+      _excluindo = true;
+      _erroExclusao = null;
+    });
+
+    try {
+      final sb = Supabase.instance.client;
+      await sb.rpc('excluir_minha_conta');
+      try {
+        await sb.auth.signOut();
+      } catch (_) {}
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Conta excluída'),
+          content: const Text(
+            'Sua conta foi excluída com sucesso. Você será direcionado para a tela de login.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } on PostgrestException catch (e) {
+      final detalhe = '${e.code ?? ''} ${e.message}'.toLowerCase();
+      setState(() {
+        _erroExclusao = detalhe.contains('pgrst202') || detalhe.contains('could not find the function')
+            ? 'Exclusão indisponível: a função "excluir_minha_conta" ainda não foi criada no Supabase.'
+            : 'Não foi possível excluir a conta: ${e.message}';
+      });
+    } on AuthException catch (e) {
+      setState(() => _erroExclusao = 'Não foi possível concluir: ${e.message}');
+    } catch (_) {
+      setState(() => _erroExclusao = 'Erro ao conectar. Tente novamente.');
+    } finally {
+      if (mounted) setState(() => _excluindo = false);
     }
   }
 
@@ -231,6 +316,75 @@ class _DadosPessoaisScreenState extends State<DadosPessoaisScreen> {
                                       'ALTERAR SENHA',
                                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                     ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Conta e Privacidade',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.privacy_tip_outlined, color: skyBlue),
+                            title: const Text('Política de Privacidade'),
+                            subtitle: const Text('Saiba como seus dados são tratados'),
+                            trailing: const Icon(Icons.open_in_new, size: 18),
+                            onTap: () => abrirPoliticaPrivacidade(context),
+                          ),
+                          const Divider(),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Excluir a conta remove seu acesso ao aplicativo. Os registros '
+                            'do cemitério são mantidos por obrigação legal.',
+                            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                          ),
+                          if (_erroExclusao != null) ...[
+                            const SizedBox(height: 12),
+                            MessageBanner(message: _erroExclusao!),
+                          ],
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: OutlinedButton.icon(
+                              onPressed: _excluindo ? null : _excluirConta,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red.shade700,
+                                side: BorderSide(color: Colors.red.shade300),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              icon: _excluindo
+                                  ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.red.shade700,
+                                      ),
+                                    )
+                                  : const Icon(Icons.delete_forever_outlined),
+                              label: Text(
+                                _excluindo ? 'EXCLUINDO...' : 'EXCLUIR MINHA CONTA',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
                         ],

@@ -7,6 +7,8 @@ class AppConfig {
   static const String cedenteNome = 'CEMITÉRIO DA RESSURREIÇÃO';
   static const String passwordResetUrl =
       'https://ressurreicao.vercel.app/#/redefinir-senha';
+  static const String privacyPolicyUrl =
+      'https://ressurreicao.vercel.app/privacidade';
 
   static const Duration syncInterval = Duration(minutes: 30);
   static const Duration fullSyncInterval = Duration(hours: 24);

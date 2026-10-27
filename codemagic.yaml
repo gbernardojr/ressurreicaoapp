@@ -32,3 +32,41 @@ workflows:
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
       - build/app/outputs/bundle/release/*.aab
+
+  ios-release:
+    name: iOS Release (TestFlight)
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.41.6
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: br.com.cemiteriodaressurreicao.app
+    cache:
+      cache_paths:
+        - ~/.pub-cache
+    integrations:
+      # O nome precisa ser igual ao da integracao App Store Connect no painel do Codemagic.
+      app_store_connect: Codemagic
+    scripts:
+      - name: Instalar dependencias
+        script: flutter pub get
+      - name: Analisar
+        script: flutter analyze
+      - name: Rodar testes
+        script: flutter test
+      - name: Configurar assinatura iOS
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=$HOME/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

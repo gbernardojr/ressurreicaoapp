@@ -5,6 +5,7 @@ import '../services/client_data.dart';
 import '../theme/app_colors.dart';
 import '../utils/auth_utils.dart';
 import '../utils/formatters.dart';
+import '../utils/links.dart';
 import '../widgets/message_banner.dart';
 import '../widgets/password_field.dart';
 import 'admin/admin_login_screen.dart';
@@ -221,6 +222,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             icon: const Icon(Icons.lock_outline, size: 18),
                             label: const Text('Área Restrita'),
+                          ),
+                          const SizedBox(height: 4),
+                          TextButton(
+                            onPressed: () => abrirPoliticaPrivacidade(context),
+                            child: const Text(
+                              'Política de Privacidade',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
                         ],
                       ),
