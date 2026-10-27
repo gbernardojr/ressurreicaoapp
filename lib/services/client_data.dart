@@ -71,11 +71,11 @@ class ClientData {
     }
 
     if (encontrado == null && email.endsWith('@sememail.com.br')) {
-      final cpf = email.replaceAll('@sememail.com.br', '');
+      final documento = email.replaceAll('@sememail.com.br', '');
       encontrado = await _sb
           .from('clientes')
           .select()
-          .eq('cpf_cnpj', cpf)
+          .eq('cpf_cnpj', documento)
           .limit(1)
           .maybeSingle();
     }
@@ -100,7 +100,7 @@ class ClientData {
       }
 
       if (admin == null) {
-        String? cpf;
+        String? documento;
         try {
           final registro = await _sb
               .from('clientes')
@@ -108,20 +108,20 @@ class ClientData {
               .eq('email', email ?? '')
               .limit(1)
               .maybeSingle();
-          cpf = registro?['cpf_cnpj']?.toString();
+          documento = registro?['cpf_cnpj']?.toString();
         } catch (_) {}
 
-        if ((cpf == null || cpf.isEmpty) &&
+        if ((documento == null || documento.isEmpty) &&
             email != null &&
             email.endsWith('@sememail.com.br')) {
-          cpf = email.replaceAll('@sememail.com.br', '');
+          documento = email.replaceAll('@sememail.com.br', '');
         }
 
-        if (cpf != null && cpf.isNotEmpty) {
+        if (documento != null && documento.isNotEmpty) {
           admin = await _sb
               .from('admin_usuarios')
               .select()
-              .eq('cpf', cpf)
+              .eq('cpf', documento)
               .eq('ativo', true)
               .maybeSingle();
         }

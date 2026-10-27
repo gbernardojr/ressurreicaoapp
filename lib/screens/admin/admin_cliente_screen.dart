@@ -34,7 +34,7 @@ class _AdminClienteScreenState extends State<AdminClienteScreen> {
 
   bool _criandoConta = false;
   String? _contaErro;
-  String? _contaEmail;
+  String? _contaLogin;
   String? _contaSenha;
 
   @override
@@ -120,24 +120,33 @@ class _AdminClienteScreenState extends State<AdminClienteScreen> {
 
   Future<void> _criarConta() async {
     final email = (widget.cliente['email'] ?? '').toString().trim();
-    if (email.isEmpty) return;
+    final documento = onlyDigits((widget.cliente['cpf_cnpj'] ?? '').toString());
+    final login = documento.isNotEmpty ? formatCpfCnpj(documento) : email;
+    final emailConta = email.isNotEmpty
+        ? email
+        : (documento.isNotEmpty ? '$documento@sememail.com.br' : '');
+
+    if (emailConta.isEmpty) {
+      setState(() => _contaErro = 'Cliente sem e-mail e sem CPF/CNPJ cadastrado.');
+      return;
+    }
 
     final senha = 'Ress@${DateTime.now().year}';
 
     setState(() {
       _criandoConta = true;
       _contaErro = null;
-      _contaEmail = null;
+      _contaLogin = null;
       _contaSenha = null;
     });
 
     try {
       final sb = Supabase.instance.client;
-      await signUpPreservingSession(sb, email: email, password: senha);
+      await signUpPreservingSession(sb, email: emailConta, password: senha);
 
       if (!mounted) return;
       setState(() {
-        _contaEmail = email;
+        _contaLogin = login;
         _contaSenha = senha;
       });
     } on AuthException catch (e) {
@@ -249,7 +258,7 @@ class _AdminClienteScreenState extends State<AdminClienteScreen> {
                           ],
                         ),
                       ),
-                      if (email.isNotEmpty) ...[
+                      if (email.isNotEmpty || cpf.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         Card(
                           margin: EdgeInsets.zero,
@@ -270,7 +279,9 @@ class _AdminClienteScreenState extends State<AdminClienteScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  email,
+                                  email.isNotEmpty
+                                      ? email
+                                      : 'Login por CPF/CNPJ: ${formatCpfCnpj(cpf)}',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.grey.shade600,
@@ -309,7 +320,7 @@ class _AdminClienteScreenState extends State<AdminClienteScreen> {
                                   const SizedBox(height: 12),
                                   MessageBanner(message: _contaErro!),
                                 ],
-                                if (_contaEmail != null) ...[
+                                if (_contaLogin != null) ...[
                                   const SizedBox(height: 12),
                                   Container(
                                     padding: const EdgeInsets.all(12),
@@ -329,13 +340,13 @@ class _AdminClienteScreenState extends State<AdminClienteScreen> {
                                         ),
                                         const SizedBox(height: 6),
                                         SelectableText(
-                                          'E-mail: $_contaEmail\nSenha temporária: $_contaSenha',
+                                          'Login: $_contaLogin\nSenha temporária: $_contaSenha',
                                           style: const TextStyle(fontSize: 14),
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          'Informe estes dados ao cliente. '
-                                          'Ele pode trocar a senha em "Esqueci minha senha".',
+                                          'Informe estes dados ao cliente. Ele entra com o CPF/CNPJ '
+                                          'e pode trocar a senha em "Esqueci minha senha".',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey.shade700,

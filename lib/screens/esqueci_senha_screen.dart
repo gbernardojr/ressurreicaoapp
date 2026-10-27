@@ -28,15 +28,15 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
 
   Future<void> _enviar() async {
     FocusScope.of(context).unfocus();
-    final cpf = onlyDigits(_cpfController.text);
+    final documento = onlyDigits(_cpfController.text);
 
     setState(() {
       _erro = null;
       _sucesso = null;
     });
 
-    if (cpf.length != 11) {
-      setState(() => _erro = 'CPF inválido');
+    if (!documentoValido(documento)) {
+      setState(() => _erro = 'Informe um CPF ou CNPJ válido');
       return;
     }
 
@@ -47,10 +47,10 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
       final clientes = await sb
           .from('clientes')
           .select('id, email, nome')
-          .eq('cpf_cnpj', cpf);
+          .eq('cpf_cnpj', documento);
 
       if (clientes.isEmpty) {
-        setState(() => _erro = 'CPF não encontrado');
+        setState(() => _erro = 'CPF/CNPJ não encontrado');
         return;
       }
 
@@ -111,27 +111,27 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
             const Text('Recuperar senha', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(
-              'Informe seu CPF para receber um link de redefinição de senha no e-mail cadastrado.',
+              'Informe seu CPF ou CNPJ para receber um link de redefinição de senha no e-mail cadastrado.',
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 24),
             TextField(
               controller: _cpfController,
               keyboardType: TextInputType.number,
-              maxLength: 14,
+              maxLength: 18,
               enabled: !_enviado,
               onChanged: (value) {
-                final formatted = formatCpf(value);
+                final formatted = formatCpfCnpj(value);
                 _cpfController.value = TextEditingValue(
                   text: formatted,
                   selection: TextSelection.collapsed(offset: formatted.length),
                 );
               },
               decoration: const InputDecoration(
-                labelText: 'CPF',
+                labelText: 'CPF ou CNPJ',
                 prefixIcon: Icon(Icons.person_outline),
                 border: OutlineInputBorder(),
-                hintText: '000.000.000-00',
+                hintText: 'CPF ou CNPJ',
                 counterText: '',
               ),
             ),

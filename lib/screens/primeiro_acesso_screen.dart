@@ -35,7 +35,7 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
 
   Future<void> _cadastrar() async {
     FocusScope.of(context).unfocus();
-    final cpf = onlyDigits(_cpfController.text);
+    final documento = onlyDigits(_cpfController.text);
     final emailInformado = _emailController.text.trim().toLowerCase();
     final senha = _senhaController.text;
     final confirma = _confirmaController.text;
@@ -45,12 +45,12 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
       _sucesso = null;
     });
 
-    if (cpf.isEmpty || senha.isEmpty || confirma.isEmpty) {
+    if (documento.isEmpty || senha.isEmpty || confirma.isEmpty) {
       setState(() => _erro = 'Preencha todos os campos');
       return;
     }
-    if (cpf.length != 11) {
-      setState(() => _erro = 'CPF inválido');
+    if (!documentoValido(documento)) {
+      setState(() => _erro = 'Informe um CPF ou CNPJ válido');
       return;
     }
     if (senha.length < 6) {
@@ -69,10 +69,10 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
       final clientes = await sb
           .from('clientes')
           .select('id, email, cpf_cnpj')
-          .eq('cpf_cnpj', cpf);
+          .eq('cpf_cnpj', documento);
 
       if (clientes.isEmpty) {
-        setState(() => _erro = 'CPF não encontrado. Procure a recepção.');
+        setState(() => _erro = 'CPF/CNPJ não encontrado. Procure a recepção.');
         return;
       }
 
@@ -87,7 +87,7 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
       final emailCadastrado = (cliente['email'] ?? '').toString().trim();
       final emailFinal = emailCadastrado.isNotEmpty
           ? emailCadastrado
-          : (emailInformado.isNotEmpty ? emailInformado : '$cpf@sememail.com.br');
+          : (emailInformado.isNotEmpty ? emailInformado : '$documento@sememail.com.br');
 
       final auth = await sb.auth.signUp(email: emailFinal, password: senha);
       if (auth.user == null) {
@@ -149,26 +149,26 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
             const Text('Cadastre sua senha', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(
-              'Informe seu CPF para criar sua conta. O e-mail é opcional.',
+              'Informe seu CPF ou CNPJ para criar sua conta. O e-mail é opcional.',
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 24),
             TextField(
               controller: _cpfController,
               keyboardType: TextInputType.number,
-              maxLength: 14,
+              maxLength: 18,
               onChanged: (value) {
-                final formatted = formatCpf(value);
+                final formatted = formatCpfCnpj(value);
                 _cpfController.value = TextEditingValue(
                   text: formatted,
                   selection: TextSelection.collapsed(offset: formatted.length),
                 );
               },
               decoration: const InputDecoration(
-                labelText: 'CPF',
+                labelText: 'CPF ou CNPJ',
                 prefixIcon: Icon(Icons.person_outline),
                 border: OutlineInputBorder(),
-                hintText: '000.000.000-00',
+                hintText: 'CPF ou CNPJ',
                 counterText: '',
               ),
             ),

@@ -67,7 +67,7 @@ class _AdminGerenciarScreenState extends State<AdminGerenciarScreen> {
     FocusScope.of(context).unfocus();
 
     final nome = _nomeController.text.trim();
-    final cpf = onlyDigits(_cpfController.text);
+    final documento = onlyDigits(_cpfController.text);
     final email = _emailController.text.trim().toLowerCase();
     final senha = _senhaController.text;
 
@@ -80,8 +80,8 @@ class _AdminGerenciarScreenState extends State<AdminGerenciarScreen> {
       setState(() => _erroForm = 'Informe o nome do administrador');
       return;
     }
-    if (cpf.length != 11) {
-      setState(() => _erroForm = 'CPF inválido');
+    if (!documentoValido(documento)) {
+      setState(() => _erroForm = 'Informe um CPF ou CNPJ válido');
       return;
     }
     if (email.isEmpty || !email.contains('@')) {
@@ -101,12 +101,12 @@ class _AdminGerenciarScreenState extends State<AdminGerenciarScreen> {
       final existente = await sb
           .from('admin_usuarios')
           .select('id')
-          .or('cpf.eq.$cpf,email.eq.$email')
+          .or('cpf.eq.$documento,email.eq.$email')
           .limit(1)
           .maybeSingle();
 
       if (existente != null) {
-        setState(() => _erroForm = 'Este CPF ou E-mail já é administrador.');
+        setState(() => _erroForm = 'Este CPF/CNPJ ou E-mail já é administrador.');
         return;
       }
 
@@ -127,7 +127,7 @@ class _AdminGerenciarScreenState extends State<AdminGerenciarScreen> {
         await sb.from('admin_usuarios').insert({
           'nome': nome,
           'email': email,
-          'cpf': cpf,
+          'cpf': documento,
           'ativo': true,
         });
       } catch (e) {
@@ -389,17 +389,17 @@ class _AdminGerenciarScreenState extends State<AdminGerenciarScreen> {
                     TextField(
                       controller: _cpfController,
                       keyboardType: TextInputType.number,
-                      maxLength: 14,
+                      maxLength: 18,
                       onChanged: (value) {
-                        final formatted = formatCpf(value);
+                        final formatted = formatCpfCnpj(value);
                         _cpfController.value = TextEditingValue(
                           text: formatted,
                           selection: TextSelection.collapsed(offset: formatted.length),
                         );
                       },
                       decoration: const InputDecoration(
-                        labelText: 'CPF do Administrador',
-                        hintText: '000.000.000-00',
+                        labelText: 'CPF ou CNPJ do Administrador',
+                        hintText: 'CPF ou CNPJ',
                         prefixIcon: Icon(Icons.badge_outlined),
                         border: OutlineInputBorder(),
                         counterText: '',
@@ -494,7 +494,7 @@ class _AdminGerenciarScreenState extends State<AdminGerenciarScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  cpf.isNotEmpty ? formatCpf(cpf) : 'Sem CPF',
+                  cpf.isNotEmpty ? formatCpfCnpj(cpf) : 'Sem CPF/CNPJ',
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 2),

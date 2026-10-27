@@ -35,17 +35,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _entrar() async {
     FocusScope.of(context).unfocus();
-    final cpf = onlyDigits(_cpfController.text);
+    final documento = onlyDigits(_cpfController.text);
     final senha = _senhaController.text;
 
     setState(() => _erro = null);
 
-    if (cpf.isEmpty || senha.isEmpty) {
+    if (documento.isEmpty || senha.isEmpty) {
       setState(() => _erro = 'Preencha todos os campos');
       return;
     }
-    if (cpf.length != 11) {
-      setState(() => _erro = 'CPF inválido');
+    if (!documentoValido(documento)) {
+      setState(() => _erro = 'Informe um CPF ou CNPJ válido');
       return;
     }
 
@@ -56,10 +56,10 @@ class _LoginScreenState extends State<LoginScreen> {
       final clientes = await sb
           .from('clientes')
           .select('id, email, nome, cpf_cnpj')
-          .eq('cpf_cnpj', cpf);
+          .eq('cpf_cnpj', documento);
 
       if (clientes.isEmpty) {
-        setState(() => _erro = 'CPF não encontrado');
+        setState(() => _erro = 'CPF/CNPJ não encontrado');
         return;
       }
 
@@ -72,9 +72,23 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final emailCadastrado = (cliente['email'] ?? '').toString().trim();
-      final email = emailCadastrado.isNotEmpty ? emailCadastrado : '$cpf@sememail.com.br';
+      final emailAlternativo = '$documento@sememail.com.br';
+      final candidatos = <String>{
+        if (emailCadastrado.isNotEmpty) emailCadastrado,
+        emailAlternativo,
+      };
 
-      await sb.auth.signInWithPassword(email: email, password: senha);
+      AuthException? ultimoErro;
+      for (final email in candidatos) {
+        try {
+          await sb.auth.signInWithPassword(email: email, password: senha);
+          ultimoErro = null;
+          break;
+        } on AuthException catch (e) {
+          ultimoErro = e;
+        }
+      }
+      if (ultimoErro != null) throw ultimoErro;
 
       final data = ClientData();
       await data.load();
@@ -152,19 +166,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextField(
                             controller: _cpfController,
                             keyboardType: TextInputType.number,
-                            maxLength: 14,
+                            maxLength: 18,
                             onChanged: (value) {
-                              final formatted = formatCpf(value);
+                              final formatted = formatCpfCnpj(value);
                               _cpfController.value = TextEditingValue(
                                 text: formatted,
                                 selection: TextSelection.collapsed(offset: formatted.length),
                               );
                             },
                             decoration: const InputDecoration(
-                              labelText: 'CPF',
+                              labelText: 'CPF ou CNPJ',
                               prefixIcon: Icon(Icons.person_outline),
                               border: OutlineInputBorder(),
-                              hintText: '000.000.000-00',
+                              hintText: 'CPF ou CNPJ',
                               counterText: '',
                             ),
                           ),

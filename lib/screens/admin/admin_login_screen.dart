@@ -31,17 +31,17 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
   Future<void> _entrar() async {
     FocusScope.of(context).unfocus();
-    final cpf = onlyDigits(_cpfController.text);
+    final documento = onlyDigits(_cpfController.text);
     final senha = _senhaController.text;
 
     setState(() => _erro = null);
 
-    if (cpf.isEmpty || senha.isEmpty) {
+    if (documento.isEmpty || senha.isEmpty) {
       setState(() => _erro = 'Preencha todos os campos');
       return;
     }
-    if (cpf.length != 11) {
-      setState(() => _erro = 'CPF inválido');
+    if (!documentoValido(documento)) {
+      setState(() => _erro = 'Informe um CPF ou CNPJ válido');
       return;
     }
 
@@ -53,7 +53,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       final adminReg = await sb
           .from('admin_usuarios')
           .select('email, ativo')
-          .eq('cpf', cpf)
+          .eq('cpf', documento)
           .eq('ativo', true)
           .maybeSingle();
 
@@ -65,7 +65,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         final clientesReg = await sb
             .from('clientes')
             .select('email')
-            .eq('cpf_cnpj', cpf);
+            .eq('cpf_cnpj', documento);
         for (final c in clientesReg) {
           final emailCliente = (c['email'] ?? '').toString().trim();
           if (emailCliente.isNotEmpty) {
@@ -77,26 +77,35 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
       if (email == null) {
         if (adminReg != null) {
-          email = '$cpf@sememail.com.br';
+          email = '$documento@sememail.com.br';
         } else {
           final clientesReg = await sb
               .from('clientes')
               .select('id')
-              .eq('cpf_cnpj', cpf)
+              .eq('cpf_cnpj', documento)
               .limit(1);
-          if (clientesReg.isNotEmpty) email = '$cpf@sememail.com.br';
+          if (clientesReg.isNotEmpty) email = '$documento@sememail.com.br';
         }
       }
 
       if (email == null) {
-        setState(() => _erro = 'CPF de administrador não encontrado ou inativo.');
+        setState(() => _erro = 'CPF/CNPJ de administrador não encontrado ou inativo.');
         return;
       }
 
-      try {
-        await sb.auth.signInWithPassword(email: email, password: senha);
-      } on AuthException catch (e) {
-        setState(() => _erro = mapAuthError(e, admin: true));
+      final candidatos = <String>{email, '$documento@sememail.com.br'};
+      AuthException? ultimoErro;
+      for (final candidato in candidatos) {
+        try {
+          await sb.auth.signInWithPassword(email: candidato, password: senha);
+          ultimoErro = null;
+          break;
+        } on AuthException catch (e) {
+          ultimoErro = e;
+        }
+      }
+      if (ultimoErro != null) {
+        setState(() => _erro = mapAuthError(ultimoErro!, admin: true));
         return;
       }
 
@@ -144,7 +153,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Entre com o CPF e a senha do administrador.',
+              'Entre com o CPF/CNPJ e a senha do administrador.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
@@ -159,19 +168,19 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                     TextField(
                       controller: _cpfController,
                       keyboardType: TextInputType.number,
-                      maxLength: 14,
+                      maxLength: 18,
                       onChanged: (value) {
-                        final formatted = formatCpf(value);
+                        final formatted = formatCpfCnpj(value);
                         _cpfController.value = TextEditingValue(
                           text: formatted,
                           selection: TextSelection.collapsed(offset: formatted.length),
                         );
                       },
                       decoration: const InputDecoration(
-                        labelText: 'CPF do Administrador',
+                        labelText: 'CPF ou CNPJ do Administrador',
                         prefixIcon: Icon(Icons.person_outline),
                         border: OutlineInputBorder(),
-                        hintText: '000.000.000-00',
+                        hintText: 'CPF ou CNPJ',
                         counterText: '',
                       ),
                     ),

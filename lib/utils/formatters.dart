@@ -1,5 +1,10 @@
 String onlyDigits(String value) => value.replaceAll(RegExp(r'\D'), '');
 
+bool documentoValido(String value) {
+  final digits = onlyDigits(value);
+  return digits.length == 11 || digits.length == 14;
+}
+
 String normalizarJazigo(String? value) =>
     (value ?? '').trim().toUpperCase().replaceAll(RegExp(r'[\s-]+'), '');
 
