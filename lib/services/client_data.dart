@@ -60,24 +60,19 @@ class ClientData {
 
     Map<String, dynamic>? encontrado;
     try {
-      encontrado = await _sb
-          .from('clientes')
-          .select()
-          .eq('email', email)
-          .limit(1)
-          .maybeSingle();
+      encontrado = await _buscarPorEmail('clientes', email);
     } catch (_) {
       encontrado = null;
     }
 
     if (encontrado == null && email.endsWith('@sememail.com.br')) {
       final documento = email.replaceAll('@sememail.com.br', '');
-      encontrado = await _sb
+      final registros = await _sb
           .from('clientes')
           .select()
           .eq('cpf_cnpj', documento)
-          .limit(1)
-          .maybeSingle();
+          .limit(1);
+      encontrado = registros.isEmpty ? null : registros.first;
     }
 
     cliente = encontrado;
@@ -91,23 +86,14 @@ class ClientData {
 
     try {
       if (email != null) {
-        admin = await _sb
-            .from('admin_usuarios')
-            .select()
-            .eq('email', email)
-            .eq('ativo', true)
-            .maybeSingle();
+        admin = await _buscarAdminPorEmail(email);
       }
 
       if (admin == null) {
         String? documento;
         try {
-          final registro = await _sb
-              .from('clientes')
-              .select('cpf_cnpj')
-              .eq('email', email ?? '')
-              .limit(1)
-              .maybeSingle();
+          final registro =
+              email == null ? null : await _buscarPorEmail('clientes', email);
           documento = registro?['cpf_cnpj']?.toString();
         } catch (_) {}
 
@@ -133,6 +119,47 @@ class ClientData {
     isAdmin = admin != null;
     adminUser = admin;
   }
+
+  Future<Map<String, dynamic>?> _buscarPorEmail(
+    String tabela,
+    String email,
+  ) async {
+    final exato = await _sb
+        .from(tabela)
+        .select()
+        .eq('email', email)
+        .limit(1)
+        .maybeSingle();
+    if (exato != null) return exato;
+
+    // O Auth devolve o e-mail em minúsculas; o cadastro pode ter maiúsculas.
+    final linhas =
+        await _sb.from(tabela).select().ilike('email', _escaparLike(email));
+    return linhas.isEmpty ? null : linhas.first;
+  }
+
+  Future<Map<String, dynamic>?> _buscarAdminPorEmail(String email) async {
+    final exato = await _sb
+        .from('admin_usuarios')
+        .select()
+        .eq('email', email)
+        .eq('ativo', true)
+        .limit(1)
+        .maybeSingle();
+    if (exato != null) return exato;
+
+    final linhas = await _sb
+        .from('admin_usuarios')
+        .select()
+        .ilike('email', _escaparLike(email))
+        .eq('ativo', true);
+    return linhas.isEmpty ? null : linhas.first;
+  }
+
+  static String _escaparLike(String valor) => valor
+      .replaceAll('\\', '\\\\')
+      .replaceAll('%', '\\%')
+      .replaceAll('_', '\\_');
 
   Future<void> _carregarMensalidades(Map<String, dynamic> registro) async {
     final clienteId = registro['id']?.toString();
