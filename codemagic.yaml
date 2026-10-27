@@ -1,0 +1,32 @@
+workflows:
+  android-release:
+    name: Android Release
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      flutter: 3.41.6
+      java: 17
+    cache:
+      cache_paths:
+        - ~/.pub-cache
+    scripts:
+      - name: Instalar dependencias
+        script: flutter pub get
+      - name: Analisar
+        script: flutter analyze
+      - name: Rodar testes
+        script: flutter test
+      - name: Configurar assinatura Android
+        script: |
+          if [ -n "$CM_KEYSTORE" ]; then
+            echo "$CM_KEYSTORE" | base64 --decode > android/app/upload-keystore.jks
+            printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=upload-keystore.jks\n' \
+              "$CM_KEYSTORE_PASSWORD" "$CM_KEY_PASSWORD" "$CM_KEY_ALIAS" > android/key.properties
+          fi
+      - name: Build APK
+        script: flutter build apk --release
+      - name: Build App Bundle
+        script: flutter build appbundle --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab
