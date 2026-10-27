@@ -6,6 +6,8 @@ workflows:
     environment:
       flutter: 3.41.6
       java: 17
+      groups:
+        - android_signing
     cache:
       cache_paths:
         - ~/.pub-cache
